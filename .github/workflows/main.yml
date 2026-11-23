@@ -8,19 +8,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check all files were uploaded
+      - name: Unpack the zip
         run: |
-          miss=0
-          for f in settings.gradle.kts build.gradle.kts gradle.properties app/build.gradle.kts app/debug.keystore app/src/main/AndroidManifest.xml app/src/main/java/com/smsbridge/MainActivity.kt app/src/main/java/com/smsbridge/Core.kt app/src/main/java/com/smsbridge/BridgeService.kt app/src/main/java/com/smsbridge/Receivers.kt app/src/main/res/mipmap-xxxhdpi/ic_launcher.png; do
-            [ -f "$f" ] || { echo "MISSING FILE: $f"; miss=1; }
-          done
-          exit $miss
+          zipfile=$(ls *.zip | head -1)
+          [ -n "$zipfile" ] || { echo "NO ZIP FOUND: upload sms-bridge.zip to the repository"; exit 1; }
+          mkdir -p src && unzip -q -o "$zipfile" -d src
+          root=$(dirname "$(find src -name settings.gradle.kts | head -1)")
+          [ -f "$root/app/build.gradle.kts" ] || { echo "BAD ZIP: app folder missing inside the zip"; exit 1; }
+          echo "PROJECT_ROOT=$root" >> $GITHUB_ENV
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 17 }
       - uses: gradle/actions/setup-gradle@v3
         with: { gradle-version: 8.5 }
-      - run: gradle assembleDebug --no-daemon
+      - name: Build
+        run: cd "$PROJECT_ROOT" && gradle assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: SmsBridge-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/app-debug.apk
