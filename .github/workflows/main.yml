@@ -1,0 +1,26 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check all files were uploaded
+        run: |
+          miss=0
+          for f in settings.gradle.kts build.gradle.kts gradle.properties app/build.gradle.kts app/debug.keystore app/src/main/AndroidManifest.xml app/src/main/java/com/smsbridge/MainActivity.kt app/src/main/java/com/smsbridge/Core.kt app/src/main/java/com/smsbridge/BridgeService.kt app/src/main/java/com/smsbridge/Receivers.kt app/src/main/res/mipmap-xxxhdpi/ic_launcher.png; do
+            [ -f "$f" ] || { echo "MISSING FILE: $f"; miss=1; }
+          done
+          exit $miss
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v3
+        with: { gradle-version: 8.5 }
+      - run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SmsBridge-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
